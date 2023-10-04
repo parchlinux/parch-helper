@@ -97,27 +97,4 @@ jobs:
           draft: true
           files: ./artifacts/**/*
 
-  publish-kanri-arm:
-      needs: publish
-      strategy:
-        matrix:
-          arch: [arm64, armv7]
-
-      runs-on: ubuntu-20.04
-      steps:
-        - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4
-        - uses: actions/setup-node@v3
-          with:
-            node-version: 16
-        - name: Install dependencies
-          run: yarn install
-        - name: Build for ${{ matrix.arch }}
-          run: yarn run init:${{matrix.arch}} && yarn run build:${{matrix.arch}}
-
-        - name: Upload Multiple Release Assets
-          uses: NBTX/upload-release-assets@v1
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          with:
-            upload_url: ${{ needs.publish.outputs.upload_url }}
-            targets: ./src-tauri/target/*/release/bundle/deb/*.deb
+ 
