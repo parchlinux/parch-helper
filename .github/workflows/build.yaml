@@ -62,7 +62,7 @@ jobs:
         with:
           target: ${{ matrix.platform.rust_target }}
 
-      - run: zip -r release.zip ./src-tauri/target/
+      - run: zip -r release.zip ./src-tauri/target/x86_64-unknown-linux-gnu
 
       # The `artifacts` output can now be used by a different action to upload the artifacts
       - uses: actions/upload-artifact@v3
