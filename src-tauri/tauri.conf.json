@@ -3,7 +3,7 @@
     "beforeDevCommand": "yarn dev",
     "beforeBuildCommand": "yarn generate",
     "devPath": "http://localhost:3000",
-    "distDir": "../public/o",
+    "distDir": "../.output/public",
     "withGlobalTauri": false
   },
   "package": {
