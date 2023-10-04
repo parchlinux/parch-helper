@@ -1,11 +1,6 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2023 trobonox <hello@trobo.tech>
-#
-# SPDX-License-Identifier: Apache-2.0
-
 name: 'Release App'
 
 on:
-  workflow_dispatch:
   release:
     types: [created]
 
@@ -68,15 +63,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      # Download the previously uploaded artifacts
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
-        id: download
         with:
           name: artifacts
           path: artifacts
-      # And create a release with the artifacts attached
       - name: 'create release'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create -R ${{ github.repository }} 1.0.0 ./artifacts/*
+        run: gh release upload ${{ github.event.release.tag_name }} "./artifacts/*" -R ${{ github.repository }} --clobber
