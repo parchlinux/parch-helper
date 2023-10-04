@@ -65,7 +65,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: artifacts
-          path: "${{ join(fromJSON(steps.tauri_build.outputs.artifacts), '\n') }}"
+          path: "./src-tauri/target/parch-wiki"
 
   publish:
     needs: build-binaries
