@@ -6,10 +6,10 @@ on:
 
 jobs:
   build-binaries:
-
+    name: 'Build binary'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3
+      - uses: actions/checkout@v3
 
       - name: setup node
         uses: actions/setup-node@v3
@@ -24,30 +24,13 @@ jobs:
           key: rust-compiled-binaries-${{ hashFiles('./src-tauri/Cargo.lock') }}
           restore-keys: |
             rust-compiled-binaries-
-
-      - name: Cache node_modules
-        uses: actions/cache@v3
-        with:
-          path: ./node_modules
-          key: node-modules-${{ hashFiles('./yarn.lock') }}
-          restore-keys: |
-            node-modules-
-
+ 
       - name: Install dependencies
         run: |
-          sudo apt update
-          sudo apt install -y libwebkit2gtk-4.0-dev \
-            build-essential \
-            url \
-            wget \
-            file \
-            libssl-dev \
-            libgtk-3-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Build Frontend
-        run: yarn && yarn generate
+      - run: yarn
 
       - name: Build App
         run: yarn tauri build
@@ -57,7 +40,8 @@ jobs:
           name: artifacts
           path: "./src-tauri/target/release/parch-wiki"
 
-  Publish:
+  publish:
+    name: 'Create release'
     needs: build-binaries
     runs-on: ubuntu-latest
     permissions:
@@ -71,4 +55,4 @@ jobs:
       - name: 'create release'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload ${{ github.event.release.tag_name }} "./artifacts/*" -R ${{ github.repository }} --clobber
+        run: gh release upload -R ${{ github.repository }} ${{ github.event.release.tag_name }} ./artifacts/*  --clobber
