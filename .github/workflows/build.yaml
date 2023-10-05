@@ -1,8 +1,11 @@
 name: 'Release App'
 
 on:
-  release:
-    types: [created]
+  workflow_dispatch:
+    inputs:
+      releaseTag:
+        required: true
+        type: string
 
 jobs:
   build-binaries:
@@ -54,13 +57,21 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.releaseTag }}
+      REPO_NAME: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v3
+
       - uses: actions/download-artifact@v3
         with:
           name: artifacts
           path: artifacts
-      - name: 'Upload assest file(s)'
-        run: gh release upload -R ${{ github.repository }} ${{ github.event.release.tag_name }} ./artifacts/*  --clobber
-        env:
-          GH_TOKEN: ${{ github.token }}
+
+      - name: 'Remove previous releases with ${{ env.RELEASE_TAG }} tag if exists'
+        continue-on-error: true
+        run: gh release delete $RELEASE_TAG --cleanup-tag -R $REPO_NAME
+
+      - name: 'Create new release'
+        run: gh release create -R $REPO_NAME $RELEASE_TAG ./artifacts/*
