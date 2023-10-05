@@ -1,94 +1,77 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2023 trobonox <hello@trobo.tech>
-#
-# SPDX-License-Identifier: Apache-2.0
-
 name: 'Release App'
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_dispatch:
+    inputs:
+      releaseTag:
+        required: true
+        type: string
 
 jobs:
   build-binaries:
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - os: ubuntu-latest
-            rust_target: x86_64-unknown-linux-gnu
-
-
-    runs-on: ${{ matrix.platform.os }}
+    name: 'Build binary'
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4
+      - uses: actions/checkout@v3
 
-      - name: Output info
-        run: echo ${{ matrix.platform.os }} ${{ matrix.platform.rust_target }}
-
-      - name: setup node
+      - name: Setup node
         uses: actions/setup-node@v3
         with:
           node-version: 16
+          cache: 'yarn'
 
-      - name: 'Setup Rust'
-        uses: actions-rs/toolchain@v1
+      - name: Cache rust compiled binaries
+        uses: actions/cache@v3
         with:
-          default: true
-          override: true
-          profile: minimal
-          toolchain: stable
-          target: ${{ matrix.platform.rust_target }}
-
-      - uses: Swatinem/rust-cache@v2
-
-      - name: install dependencies (ubuntu x86_64)
-        if: matrix.platform.os == 'ubuntu-latest'
+          path: ./src-tauri/target
+          key: rust-compiled-binaries-${{ hashFiles('./src-tauri/Cargo.lock') }}
+          restore-keys: |
+            rust-compiled-binaries-
+ 
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install libwebkit2gtk-4.0-dev \
+              build-essential \
+              curl \
+              wget \
+              file \
+              libssl-dev \
+              libgtk-3-dev \
+              libayatana-appindicator3-dev \
+              librsvg2-dev
 
-      - name: Build Frontend
-        run: yarn && yarn generate
+      - run: yarn
 
-      - uses: JonasKruckenberg/tauri-build@v1.4.0
-        id: tauri_build
-        with:
-          target: ${{ matrix.platform.rust_target }}
+      - name: Build App
+        run: yarn tauri build
 
-      # The `artifacts` output can now be used by a different action to upload the artifacts
       - uses: actions/upload-artifact@v3
         with:
           name: artifacts
-          path: "${{ join(fromJSON(steps.tauri_build.outputs.artifacts), '\n') }}"
+          path: "./src-tauri/target/release/parch-wiki"
 
   publish:
+    name: 'Create release'
     needs: build-binaries
     runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.release.outputs.upload_url }}
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.releaseTag }}
+      REPO_NAME: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4
-      # Download the previously uploaded artifacts
+      - uses: actions/checkout@v3
+
       - uses: actions/download-artifact@v3
-        id: download
         with:
           name: artifacts
           path: artifacts
-      # And create a release with the artifacts attached
-      - name: 'create release'
-        uses: softprops/action-gh-release@master
-        id: release
-        env:
-          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
-        with:
-          name: "Kanri vx.x.x"
-          draft: true
-          files: ./artifacts/**/*
 
- 
+      - name: 'Remove previous releases with ${{ env.RELEASE_TAG }} tag if exists'
+        continue-on-error: true
+        run: gh release delete $RELEASE_TAG --cleanup-tag -R $REPO_NAME
+
+      - name: 'Create new release'
+        run: gh release create -R $REPO_NAME $RELEASE_TAG ./artifacts/*
