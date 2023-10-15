@@ -9,6 +9,8 @@ on:
 
 jobs:
   build-binaries:
+    permissions:
+      contents: write
     name: 'Build binary'
     runs-on: ubuntu-latest
     steps:
@@ -46,32 +48,12 @@ jobs:
       - name: Build App
         run: yarn tauri build
 
-      - uses: actions/upload-artifact@v3
-        with:
-          name: artifacts
-          path: "./src-tauri/target/release/parch-wiki"
-
-  publish:
-    name: 'Create release'
-    needs: build-binaries
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    env:
-      GH_TOKEN: ${{ github.token }}
-      RELEASE_TAG: ${{ inputs.releaseTag }}
-      REPO_NAME: ${{ github.repository }}
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: actions/download-artifact@v3
-        with:
-          name: artifacts
-          path: artifacts
-
       - name: 'Remove previous releases with ${{ env.RELEASE_TAG }} tag if exists'
         continue-on-error: true
         run: gh release delete $RELEASE_TAG --cleanup-tag -R $REPO_NAME
 
       - name: 'Create new release'
-        run: gh release create -R $REPO_NAME $RELEASE_TAG ./artifacts/*
+        run: gh release create -R $REPO_NAME $RELEASE_TAG "./src-tauri/target/release/parch-wiki"
+      
+
+  
